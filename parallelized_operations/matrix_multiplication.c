@@ -3,12 +3,35 @@
 #include <time.h>
 #include <omp.h>
 
-float **MatrixMultiplication(float **m1, float **m2, int size)
+float **SerialMM(float **m1, float **m2, int size)
 {
     float **result = (float **)malloc(size * sizeof(float *));
     for (int i = 0; i < size; ++i)
         result[i] = (float *)malloc(size * sizeof(float));
 
+    double st = omp_get_wtime();
+    for(int i = 0; i < size; i++)
+    {
+        for(int j = 0; j < size; j++)
+        {
+            for(int k = 0; k < size; k++)
+            {
+                result[i][j] += m1[i][k] * m2[k][j];
+            }
+        }
+    }
+    double et = omp_get_wtime();
+    print("Result: %lf\n", et-st);
+    return result;
+}
+
+float **ParallelMM(float **m1, float **m2, int size)
+{
+    float **result = (float **)malloc(size * sizeof(float *));
+    for (int i = 0; i < size; ++i)
+        result[i] = (float *)malloc(size * sizeof(float));
+    
+    double st = omp_get_wtime();
     #pragma omp parallel for schedule(dynamic, 50) collapse(2) private(i,j,k) shared(a,b,c)
     for(int i = 0; i < size; i++)
     {
@@ -20,6 +43,31 @@ float **MatrixMultiplication(float **m1, float **m2, int size)
             }
         }
     }
+    double et = omp_get_wtime();
+    print("Result: %lf\n", et-st);
+    return result;
+}
+
+float **_ParallelMM(float **m1, float **m2, int size)
+{
+    float **result = (float **)malloc(size * sizeof(float *));
+    for (int i = 0; i < size; ++i)
+        result[i] = (float *)malloc(size * sizeof(float));
+
+    double st = omp_get_wtime();
+    #pragma omp parallel for schedule(dynamic, 50) collapse(2) private(i,j,k) shared(a,b,c)
+    for(int i = 0; i < size; i++)
+    {
+        for(int j = 0; j < size; j++)
+        {
+            for(int k = 0; k < size; k++)
+            {
+                result[i][j] += m1[i][k] * m2[k][j];
+            }
+        }
+    }
+    double et = omp_get_wtime();
+    print("Elapsed time: %lf\n", et-st);
     return result;
 }
 
@@ -67,11 +115,21 @@ int main()
     for (int i = 0; i < size; ++i)
         matrix2[i] = (float *)malloc(size * sizeof(float));
 
+    printf("Filling matrices ...");
     FillMatrix(matrix1, size);
     FillMatrix(matrix2, size);
     
-    float **matrixResult = MatrixMultiplication(matrix1, matrix2, size);
-    
+    printf("Performing serial multiplication");
+    float **matrixResult1 = SerialMM(matrix1, matrix2, size);
+    printf("Ended");
+
+    printf("Performing parallel multiplication");
+    float **matrixResult2 = ParallelMM(matrix1, matrix2, size);
+    printf("Ended");
+
+    printf("Performing second parallel multiplication");
+    float **matrixResult3 = _ParallelMM(matrix1, matrix2, size);
+    printf("Ended");
     // SaveMatrixToCsvFile(matrix1, size, "matrix1.csv");
     // SaveMatrixToCsvFile(matrix2, size, "matrix2.csv");
     // SaveMatrixToCsvFile(matrixResult, size, "multMatrixResult.csv");
