@@ -48,12 +48,10 @@ float **MatrixMultiplication(float **m1, float **m2, int size)
     {
         for(int j = 0; j < size; j++)
         {
-            float resultAux = 0;
             for(int k = 0; k < size; k++)
             {
-                resultAux += m1[i][k] * m2[k][j];
+                result[i][j] += m1[i][k] * m2[k][j];
             }
-            result[i][j] = resultAux;
         }
     }
     return result;
@@ -92,7 +90,8 @@ void SaveMatrixToCsvFile(float **matrix, int size, char *fileName)
 int main()
 {
     srand(time(NULL));
-
+    int size = 1000;
+    /*
     int size;
     printf("Enter the size: ");
     scanf("%d", &size);
@@ -106,7 +105,7 @@ int main()
     SaveVectorToCsvFile(vec1, size, "vector1.csv");
     SaveVectorToCsvFile(vec2, size, "vector2.csv");
     SaveVectorToCsvFile(result, size, "sumVectorsResult.csv");
-
+    */
     float **matrix1 = (float **)malloc(size * sizeof(float *));
     for (int i = 0; i < size; ++i)
         matrix1[i] = (float *)malloc(size * sizeof(float));
@@ -120,9 +119,10 @@ int main()
     
     float **matrixResult = MatrixMultiplication(matrix1, matrix2, size);
     
+    /* 
     SaveMatrixToCsvFile(matrix1, size, "matrix1.csv");
     SaveMatrixToCsvFile(matrix2, size, "matrix2.csv");
     SaveMatrixToCsvFile(matrixResult, size, "multMatrixResult.csv");
-
+    */
     return 0;
 }
