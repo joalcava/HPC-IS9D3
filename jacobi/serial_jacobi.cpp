@@ -1,18 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "timing.c"
 
-/* --
- * Do nsweeps sweeps of Jacobi iteration on a 1D Poisson problem
- *
- *    -u'' = f
- *
- * discretized by n+1 equally spaced mesh points on [0,1].
- * u is subject to Dirichlet boundary conditions specified in
- * the u[0] and u[n] entries of the initial vector.
- */
 void jacobi(int nsweeps, int n, double* u, double* f)
 {
     int i, sweep;
@@ -20,7 +10,6 @@ void jacobi(int nsweeps, int n, double* u, double* f)
     double h2 = h*h;
     double* utmp = (double*) malloc( (n+1) * sizeof(double) );
 
-    /* Fill boundary conditions into utmp */
     utmp[0] = u[0];
     utmp[n] = u[n];
 

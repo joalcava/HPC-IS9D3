@@ -1,0 +1,6 @@
+[10] Mean elapsed time: 0.000005
+[100] Mean elapsed time: 0.004397
+[250] Mean elapsed time: 0.064719
+[500] Mean elapsed time: 0.604901
+[750] Mean elapsed time: 2.107102
+[1000] Mean elapsed time: 5.472622
