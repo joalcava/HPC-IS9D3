@@ -5,7 +5,7 @@
 #include <iostream>
 #include <chrono>
 
-using namespace std;
+//using namespace std;
 
 double SerialMM(float **m1, float **m2, int size)
 {
@@ -34,7 +34,7 @@ int main(int argc, char ** argv)
 {
 
     if (argc != 2) {
-        cout << "Please, enter the size of the square matrix." << endl;
+        std::cout << "Please, enter the size of the square matrix." << std::endl;
     }
 
     int size = atoi(argv[1]);
