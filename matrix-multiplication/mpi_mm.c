@@ -1,53 +1,48 @@
+/******************************************************************************
+* FILE: mpi_mm.matrixR
+* DESCRIPTION:
+*   MPI Matrix Multiply - C Version
+*   In this code, the master task distributes matrix1 matrix multiply
+*   operation to numtasks-1 worker tasks.
+*   NOTE:  C and Fortran versions of this code differ because of the way
+*   arrays are stored/passed.  C arrays are row-major order but Fortran
+*   arrays are column-major order.
+* AUTHOR: Blaise Barney, Ros Leibensperger.
+******************************************************************************/
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SIZE 500
 #define MASTER 0
 #define FROM_MASTER 1
 #define FROM_WORKER 2
 
-// Performs the multiplication of a given matrix segment
-// void MMSegment(double **m1, double **m2, double* result, int from, int to, int size)
-// {
-//     //printf("[%d] From: %d To: %d\n", getpid(), from, to);
-//     for(int i = from; i < to; i++)
-//     {
-//         for(int j = 0; j < size; j++)
-//         {
-//             double cellTotal = 0;
-//             for(int k = 0; k < size; k++)
-//             {
-//                 cellTotal += m1[i][k] * m2[k][j];
-//             }
-//             result[i * size + j] = cellTotal;
-//         }
-//     }
-// }
+int main(int argc, char *argv[])
+{
+    int numtasks,              /* number of tasks in partition */
+        taskid,                /* matrix1 task identifier */
+        numworkers,            /* number of worker tasks */
+        source,                /* task id of message source */
+        dest,                  /* task id of message destination */
+        rows,                  /* rows of matrix A sent to each worker */
+        averow, extra, offset, /* used to determine rows sent to each worker */
+        i, j, k;               /* misc */
 
-int main(int argc, char ** argv) {
-
-    printf("Debug 1");
-
-    int size = 1000;
-    int numtasks, taskid, numworkers, rows;
-
-    double matrix1[size][size],
-           matrix2[size][size],
-           matrixR[size][size];
+    double matrix1[SIZE][SIZE],        /* matrix A to be multiplied */
+        matrix2[SIZE][SIZE],           /* matrix B to be multiplied */
+        matrixR[SIZE][SIZE];           /* result matrix C */
 
     MPI_Status status;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
 
-    int averow = size/numworkers;
-    int extra = size%numworkers;
-    int offset = 0;
-
-    if (numtasks < 2) {
-        printf("Se necesitan almenos 2 'MPI tasks'");
-        int errC;
-        MPI_Abort(MPI_COMM_WORLD, errC);
+    if (numtasks < 2)
+    {
+        int errCod;
+        printf("Need at least two MPI tasks...\n");
+        MPI_Abort(MPI_COMM_WORLD, errCod);
         exit(1);
     }
 
@@ -55,70 +50,83 @@ int main(int argc, char ** argv) {
 
     if (taskid == MASTER)
     {
-        printf("MPI ha iniciado con %d tareas.\n", numtasks);
+        printf("MPI MM has started with %d tasks.\n", numtasks);
 
-        for (int i=0; i < size; ++i) {
-            for (int j=0; j < size; ++j) {
+        for (i=0; i < SIZE; i++)
+            for (j=0; j < SIZE; j++)
                 matrix1[i][j] = ((double)rand() / (double)(RAND_MAX)) * 9.0;
-            }
-        }
-        for (int i=0; i < size; ++i) {
-            for (int j=0; j < size; ++j) {
-                matrix2[i][j] = ((double)rand() / (double)(RAND_MAX)) * 9.0;
-            }
-        }
 
+        for (i=0; i < SIZE; i++)
+            for (j=0; j < SIZE; j++)
+                matrix2[i][j] = ((double)rand() / (double)(RAND_MAX)) * 9.0;
+
+        /* Measure start time */
         double start = MPI_Wtime();
 
-        int dest = 1;
-        for (dest = 1; dest <= numworkers; dest++) {
-            int rowsToSend = (dest <= extra) ? averow + 1 : averow;
-            printf("Enviando %d filas a tarea %d - offset=%d\n", rowsToSend, dest, offset);
+        /* Send matrix data to the worker tasks */
+        averow = SIZE / numworkers;
+        extra = SIZE % numworkers;
+        offset = 0;
+        for (dest = 1; dest <= numworkers; dest++)
+        {
+            rows = (dest <= extra) ? averow + 1 : averow;
+            // printf("Sending %d rows to task %d offset=%d\n",rows,dest,offset);
             MPI_Send(&offset, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
-            MPI_Send(&rowsToSend, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
-            MPI_Send(&matrix1[offset][0], rowsToSend*size, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
-            MPI_Send(&matrix2, size*size, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
+            MPI_Send(&rows, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
+            MPI_Send(&matrix1[offset][0], rows * SIZE, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
+            MPI_Send(&matrix2, SIZE * SIZE, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
             offset = offset + rows;
         }
 
-      int rowsRecv, source;
-      for (int i = 1; i <= numworkers; i++)
-      {
-          source = i;
-          MPI_Recv(&offset, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
-          MPI_Recv(&rowsRecv, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
-          MPI_Recv(&matrixR[offset][0], rowsRecv*size, MPI_DOUBLE, source, FROM_WORKER, MPI_COMM_WORLD, &status);
-      }
+        /* Receive results from worker tasks */
+        for (i = 1; i <= numworkers; i++)
+        {
+            source = i;
+            MPI_Recv(&offset, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
+            MPI_Recv(&rows, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
+            MPI_Recv(&matrixR[offset][0], rows * SIZE, MPI_DOUBLE, source, FROM_WORKER, MPI_COMM_WORLD, &status);
+            // printf("Received results from task %d\n",source);
+        }
 
-      double finish = MPI_Wtime();
-      printf("Done in %f seconds.\n", finish - start);
+        /* Print results */
+        /*
+      printf("******************************************************\n");
+      printf("Result Matrix:\n");
+      for (i=0; i<SIZE; i++)
+      {
+         printf("\n");
+         for (j=0; j<SIZE; j++)
+            printf("%6.2f   ", matrixR[i][j]);
+      }
+      printf("\n******************************************************\n");
+      */
+
+        /* Measure finish time */
+        double finish = MPI_Wtime();
+        printf("Done in %f seconds.\n", finish - start);
     }
 
-
+    /**************************** worker task ************************************/
     if (taskid > MASTER)
     {
+        printf("Task %d start running.\n", taskid);
         MPI_Recv(&offset, 1, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
         MPI_Recv(&rows, 1, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
-        MPI_Recv(&matrix1, rows*size, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
-        MPI_Recv(&matrix2, size*size, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
+        MPI_Recv(&matrix1, rows * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
+        MPI_Recv(&matrix2, SIZE * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
 
-        for (int k=0; k<size; k++) {
-            for (int i=0; i<rows; i++) {
+        for (k = 0; k < SIZE; k++)
+            for (i = 0; i < rows; i++)
+            {
                 matrixR[i][k] = 0.0;
-                for (int j=0; j<size; j++) {
+                for (j = 0; j < SIZE; j++)
                     matrixR[i][k] = matrixR[i][k] + matrix1[i][j] * matrix2[j][k];
-                }
             }
-        }
 
         MPI_Send(&offset, 1, MPI_INT, MASTER, FROM_WORKER, MPI_COMM_WORLD);
         MPI_Send(&rows, 1, MPI_INT, MASTER, FROM_WORKER, MPI_COMM_WORLD);
-        MPI_Send(&matrixR, rows*size, MPI_DOUBLE, MASTER, FROM_WORKER, MPI_COMM_WORLD);
+        MPI_Send(&matrixR, rows * SIZE, MPI_DOUBLE, MASTER, FROM_WORKER, MPI_COMM_WORLD);
     }
 
-    // SaveMatrixToCsvFile(matrix1, size, "m1.csv");
-    // SaveMatrixToCsvFile(matrix2, size, "m2.csv");
-
     MPI_Finalize();
-    return 0;
 }
