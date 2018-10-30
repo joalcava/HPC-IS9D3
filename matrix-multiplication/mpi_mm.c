@@ -10,6 +10,7 @@
 * AUTHOR: Blaise Barney, Ros Leibensperger.
 ******************************************************************************/
 #include <mpi.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    numworkers = numtasks - 1;
+    numworkers = 2;
 
     if (taskid == MASTER)
     {
@@ -70,7 +71,7 @@ int main(int argc, char *argv[])
         for (dest = 1; dest <= numworkers; dest++)
         {
             rows = (dest <= extra) ? averow + 1 : averow;
-            // printf("Sending %d rows to task %d offset=%d\n",rows,dest,offset);
+            printf("Sending %d rows to task %d offset=%d\n",rows,dest,offset);
             MPI_Send(&offset, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
             MPI_Send(&rows, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
             MPI_Send(&matrix1[offset][0], rows * SIZE, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
@@ -85,21 +86,8 @@ int main(int argc, char *argv[])
             MPI_Recv(&offset, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
             MPI_Recv(&rows, 1, MPI_INT, source, FROM_WORKER, MPI_COMM_WORLD, &status);
             MPI_Recv(&matrixR[offset][0], rows * SIZE, MPI_DOUBLE, source, FROM_WORKER, MPI_COMM_WORLD, &status);
-            // printf("Received results from task %d\n",source);
+            printf("Received results from task %d\n",source);
         }
-
-        /* Print results */
-        /*
-      printf("******************************************************\n");
-      printf("Result Matrix:\n");
-      for (i=0; i<SIZE; i++)
-      {
-         printf("\n");
-         for (j=0; j<SIZE; j++)
-            printf("%6.2f   ", matrixR[i][j]);
-      }
-      printf("\n******************************************************\n");
-      */
 
         /* Measure finish time */
         double finish = MPI_Wtime();
@@ -115,6 +103,7 @@ int main(int argc, char *argv[])
         MPI_Recv(&matrix1, rows * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
         MPI_Recv(&matrix2, SIZE * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
 
+	#pragma omp parallel for private(i,j,k)
         for (k = 0; k < SIZE; k++)
             for (i = 0; i < rows; i++)
             {
