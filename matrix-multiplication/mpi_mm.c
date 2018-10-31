@@ -1,20 +1,9 @@
-/******************************************************************************
-* FILE: mpi_mm.matrixR
-* DESCRIPTION:
-*   MPI Matrix Multiply - C Version
-*   In this code, the master task distributes matrix1 matrix multiply
-*   operation to numtasks-1 worker tasks.
-*   NOTE:  C and Fortran versions of this code differ because of the way
-*   arrays are stored/passed.  C arrays are row-major order but Fortran
-*   arrays are column-major order.
-* AUTHOR: Blaise Barney, Ros Leibensperger.
-******************************************************************************/
 #include <mpi.h>
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SIZE 500
+#define SIZE 5000
 #define MASTER 0
 #define FROM_MASTER 1
 #define FROM_WORKER 2
@@ -39,6 +28,8 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
 
+    printf("Numtasks: %d \n", numtasks);
+
     if (numtasks < 2)
     {
         int errCod;
@@ -47,7 +38,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    numworkers = 2;
+    numworkers = numtasks - 1;
 
     if (taskid == MASTER)
     {
@@ -103,7 +94,7 @@ int main(int argc, char *argv[])
         MPI_Recv(&matrix1, rows * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
         MPI_Recv(&matrix2, SIZE * SIZE, MPI_DOUBLE, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
 
-	#pragma omp parallel for private(i,j,k)
+	//#pragma omp parallel for private(i,j,k)
         for (k = 0; k < SIZE; k++)
             for (i = 0; i < rows; i++)
             {
